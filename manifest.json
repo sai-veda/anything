@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Autonomous Web Agent",
+  "version": "0.1",
+  "permissions": ["scripting", "tabs", "activeTab", "storage"],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://chat.openai.com/*"],
+      "js": ["chatgpt_content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "host_permissions": [
+    "*://*/*"
+  ]
+} 
