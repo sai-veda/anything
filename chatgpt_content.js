@@ -1,5 +1,11 @@
 console.log('[ChatGPT Content] Script loaded');
 
+// Notify background script that content script is ready
+chrome.runtime.sendMessage({ type: 'CONTENT_SCRIPT_READY' });
+
+// Keep track of ready state
+let isReady = false;
+
 const observer = new MutationObserver(mutations => {
   console.log('[ChatGPT Content] Mutations detected:', mutations.length);
   for (let mutation of mutations) {
@@ -55,6 +61,10 @@ observer.observe(document.body, {
 // Listen for request to insert a prompt
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   console.log('[ChatGPT Content] Received message:', msg);
+  
+  // Always send a response to confirm message was received
+  sendResponse({ received: true });
+  
   if (msg.type === 'INSERT_PROMPT') {
     console.log('[ChatGPT Content] Attempting to insert test prompt');
     

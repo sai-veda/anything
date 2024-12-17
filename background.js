@@ -1,10 +1,19 @@
 let isRunning = false;
 let lastTargetTabId = null;
+let contentScriptReady = false;
 
 console.log('[Background] Script initialized');
 
+// Track content script readiness
 chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
   console.log('[Background] Received message:', msg, 'from sender:', sender);
+  
+  if (msg.type === 'CONTENT_SCRIPT_READY') {
+    console.log('[Background] Content script ready in tab:', sender.tab.id);
+    contentScriptReady = true;
+    sendResponse({ received: true });
+    return;
+  }
   
   if (msg.type === 'CONTROL') {
     if (msg.action === 'START') {
@@ -12,15 +21,66 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
       console.log('[Background] Automation started, isRunning:', isRunning);
       log("Automation started.");
       
-      chrome.tabs.query({url: ["https://chatgpt.com/*", "https://chat.openai.com/*"]}, (tabs) => {
-        if (tabs.length > 0) {
-          console.log('[Background] Found ChatGPT tab, sending INSERT_PROMPT');
-          chrome.tabs.sendMessage(tabs[0].id, {type: 'INSERT_PROMPT'});
-        } else {
-          console.log('[Background] No ChatGPT tab found');
-          log("No ChatGPT tab found. Please open ChatGPT and log in.");
+      try {
+        const tabs = await chrome.tabs.query({active: true, currentWindow: true});
+        
+        if (!tabs || tabs.length === 0) {
+          throw new Error('No active tab found');
         }
-      });
+        
+        const tabId = tabs[0].id;
+        console.log('[Background] Found active tab:', tabId);
+        
+        // First inject the automation script
+        console.log('[Background] Injecting automation script into tab:', tabId);
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          files: ['automation_content.js']
+        });
+        
+        // Wait for content script to initialize
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // First focus the input field
+        await chrome.tabs.sendMessage(tabId, {
+          type: 'EXECUTE_COMMAND',
+          command: {
+            action: 'CLICK',
+            selector: '#prompt-textarea'
+          }
+        });
+        
+        // Wait a bit to simulate human behavior
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Type the text
+        await chrome.tabs.sendMessage(tabId, {
+          type: 'EXECUTE_COMMAND',
+          command: {
+            action: 'TYPE',
+            text: 'hi',
+            selector: '#prompt-textarea',
+            simulateHuman: true
+          }
+        });
+        
+        // Wait a bit before clicking send button
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        // Click the send button
+        await chrome.tabs.sendMessage(tabId, {
+          type: 'EXECUTE_COMMAND',
+          command: {
+            action: 'CLICK',
+            selector: 'button[data-testid="send-button"]'
+          }
+        });
+        
+        console.log('[Background] Message successfully sent');
+      } catch (error) {
+        console.error('[Background] Error:', error);
+        log(error.message || "Could not interact with ChatGPT page. Please make sure you're on the ChatGPT page and try again.");
+      }
     } else if (msg.action === 'STOP') {
       isRunning = false;
       console.log('[Background] Automation stopped, isRunning:', isRunning);

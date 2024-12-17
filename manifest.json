@@ -2,25 +2,29 @@
   "manifest_version": 3,
   "name": "Autonomous Web Agent",
   "version": "0.1",
-  "permissions": ["scripting", "tabs", "activeTab", "storage"],
+  "permissions": [
+    "scripting",
+    "tabs",
+    "activeTab",
+    "storage"
+  ],
   "action": {
     "default_popup": "popup.html"
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "content_scripts": [
     {
       "matches": [
-        "https://chat.openai.com/*",
-        "https://chatgpt.com/*"
+        "https://chat.openai.com/*"
       ],
       "js": ["chatgpt_content.js"],
-      "run_at": "document_idle"
+      "run_at": "document_start"
     }
   ],
   "host_permissions": [
-    "https://chat.openai.com/*",
-    "https://chatgpt.com/*"
+    "https://chat.openai.com/*"
   ]
 } 
