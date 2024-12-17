@@ -12,13 +12,13 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
       console.log('[Background] Automation started, isRunning:', isRunning);
       log("Automation started.");
       
-      chrome.tabs.query({url: "*://chat.openai.com/*"}, (tabs) => {
+      chrome.tabs.query({url: ["https://chatgpt.com/*", "https://chat.openai.com/*"]}, (tabs) => {
         if (tabs.length > 0) {
           console.log('[Background] Found ChatGPT tab, sending INSERT_PROMPT');
           chrome.tabs.sendMessage(tabs[0].id, {type: 'INSERT_PROMPT'});
         } else {
           console.log('[Background] No ChatGPT tab found');
-          log("No ChatGPT tab found. Please open chat.openai.com and log in.");
+          log("No ChatGPT tab found. Please open ChatGPT and log in.");
         }
       });
     } else if (msg.action === 'STOP') {

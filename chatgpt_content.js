@@ -1,6 +1,5 @@
 console.log('[ChatGPT Content] Script loaded');
 
-// Observe ChatGPT conversation
 const observer = new MutationObserver(mutations => {
   console.log('[ChatGPT Content] Mutations detected:', mutations.length);
   for (let mutation of mutations) {
@@ -8,10 +7,13 @@ const observer = new MutationObserver(mutations => {
       mutation.addedNodes.forEach(node => {
         if (node.nodeType === Node.ELEMENT_NODE) {
           console.log('[ChatGPT Content] New element node added:', node);
+
           // Try to find ChatGPT answer blocks
           const messageBlocks = node.querySelectorAll('.markdown');
-          console.log('[ChatGPT Content] Found message blocks:', messageBlocks.length);
-          
+          if (messageBlocks.length > 0) {
+            console.log('[ChatGPT Content] Found message blocks:', messageBlocks.length);
+          }
+
           messageBlocks.forEach(block => {
             const text = block.innerText;
             console.log('[ChatGPT Content] Processing message block:', text);
@@ -43,34 +45,27 @@ const observer = new MutationObserver(mutations => {
   }
 });
 
-// Start observing the conversation
-function startObserving() {
-  console.log('[ChatGPT Content] Attempting to start observer');
-  const targetNode = document.querySelector('#__next');
-  if (targetNode) {
-    observer.observe(targetNode, {
-      childList: true,
-      subtree: true
-    });
-    console.log('[ChatGPT Content] Observer started successfully');
-  } else {
-    console.log('[ChatGPT Content] Target node not found, retrying in 1s');
-    setTimeout(startObserving, 1000);
-  }
-}
+// Start observing document.body immediately
+console.log('[ChatGPT Content] Starting observer on document.body');
+observer.observe(document.body, {
+  childList: true,
+  subtree: true
+});
 
 // Listen for request to insert a prompt
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   console.log('[ChatGPT Content] Received message:', msg);
   if (msg.type === 'INSERT_PROMPT') {
     console.log('[ChatGPT Content] Attempting to insert test prompt');
-    // Insert a test prompt into ChatGPT input and simulate Enter
-    const inputSelector = 'textarea';
+    
+    const inputSelector = '#prompt-textarea';
     const inputEl = document.querySelector(inputSelector);
+    
     if (inputEl) {
       console.log('[ChatGPT Content] Found input element');
-      // Example prompt asking ChatGPT to provide a JSON command list
-      inputEl.value = `Please produce a JSON block with commands to open Google Docs at https://docs.google.com, create a new document, and type 'Hello' into it. The JSON should look like this:
+      
+      // Set the prompt text
+      const promptText = `Please produce a JSON block with commands to open Google Docs at https://docs.google.com, create a new document, and type 'Hello' into it. The JSON should look like this:
 {
   "commands": [
     {"action":"GO_TO", "url":"https://docs.google.com"},
@@ -78,30 +73,73 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     {"action":"TYPE", "selector":".kix-lineview", "text":"Hello"}
   ]
 }`;
+
+      // Set the value and innerHTML (some versions of ChatGPT use one or the other)
+      inputEl.value = promptText;
+      inputEl.innerHTML = promptText;
       
+      // Dispatch input event to notify the app of changes
       inputEl.dispatchEvent(new Event('input', {bubbles: true}));
       console.log('[ChatGPT Content] Dispatched input event');
+
+      // Try multiple submission approaches in sequence
       
-      // Try to submit the form
+      // 1. Try to find and click the send button first
+      const sendButton = document.querySelector('button[aria-label="Send message"]');
+      if (sendButton) {
+        console.log('[ChatGPT Content] Found send button, clicking it');
+        sendButton.click();
+        return;
+      }
+      
+      // 2. Try form submission if available
       const form = inputEl.closest('form');
       if (form) {
         console.log('[ChatGPT Content] Found form, submitting');
         form.dispatchEvent(new Event('submit', {bubbles: true}));
-      } else {
-        console.log('[ChatGPT Content] No form found, simulating Enter key');
-        // Fallback to Enter key simulation
-        const enterEvent = new KeyboardEvent('keydown', {
-          bubbles: true,
-          cancelable: true,
-          key: 'Enter',
-          code: 'Enter'
-        });
-        inputEl.dispatchEvent(enterEvent);
+        return;
       }
+      
+      // 3. Fallback to simulating Enter key with more complete event properties
+      console.log('[ChatGPT Content] Trying Enter key simulation');
+      const enterEvent = new KeyboardEvent('keydown', {
+        bubbles: true,
+        cancelable: true,
+        key: 'Enter',
+        code: 'Enter',
+        keyCode: 13,
+        which: 13,
+        composed: true
+      });
+      
+      inputEl.dispatchEvent(enterEvent);
+      
+      // Also try keypress and keyup for completeness
+      const keypressEvent = new KeyboardEvent('keypress', {
+        bubbles: true,
+        cancelable: true,
+        key: 'Enter',
+        code: 'Enter',
+        keyCode: 13,
+        which: 13,
+        composed: true
+      });
+      
+      const keyupEvent = new KeyboardEvent('keyup', {
+        bubbles: true,
+        cancelable: true,
+        key: 'Enter',
+        code: 'Enter',
+        keyCode: 13,
+        which: 13,
+        composed: true
+      });
+      
+      inputEl.dispatchEvent(keypressEvent);
+      inputEl.dispatchEvent(keyupEvent);
+      
     } else {
       console.warn('[ChatGPT Content] Could not find input element');
     }
   }
-});
-
-startObserving(); 
+}); 
